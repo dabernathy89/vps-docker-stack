@@ -1,0 +1,43 @@
+# gantry_config.yml (Place this file locally, Ansible copies it)
+# Gantry configuration specifying services to watch and registry credentials.
+# Refer to Gantry docs for all options: https://github.com/shizunge/gantry
+registries:
+  # Define credentials for your private registry (GHCR)
+  ghcr.io:
+    # Credentials will be passed via environment variables to the Gantry container
+    # Gantry automatically picks up DOCKER_USER and DOCKER_PASSWORD env vars
+    # Alternatively, specify username/password directly here (less secure)
+    # username: YOUR_GITHUB_USERNAME
+    # password: YOUR_GITHUB_PAT
+    pass_credentials_to_env: true # Recommended when using env vars
+
+services:
+  # Define services Gantry should monitor for updates.
+  # The name MUST match the Swarm service name (<stack_name>_<service_name_in_stack>)
+
+  # Example: Monitor App 1 (stack 'app1', service 'app')
+  - name: app1_app
+    image: ghcr.io/YOUR_GITHUB_USERNAME/frankenphp-app1 # Base image name
+    tag: latest # Tag to monitor (can be specific tag or 'latest')
+    # interval: 300 # Check interval in seconds (default: 300)
+    # strategy: simple # Update strategy (default: simple)
+
+  # Example: Monitor App 2 (stack 'app2', service 'app')
+  - name: app2_app
+    image: ghcr.io/YOUR_GITHUB_USERNAME/frankenphp-app2
+    tag: latest
+
+  # Optional: Monitor Traefik itself if using a private image
+  # - name: traefik_traefik
+  #   image: ghcr.io/YOUR_GITHUB_USERNAME/my-traefik # Your private traefik image
+  #   tag: latest
+
+swarm:
+  # Enable Swarm mode for Gantry
+  enabled: true
+  # endpoint: unix:///var/run/docker.sock # Default, usually not needed
+# Optional: Notifications (e.g., Slack, Discord)
+# notifications:
+#   slack:
+#     webhook_url: "YOUR_SLACK_WEBHOOK_URL"
+#     channel: "#deployments"

@@ -1,0 +1,62 @@
+# playbook.yml (Expected path: ansible-vps-setup/playbook.yml)
+# Configures the VPS with Docker Swarm and prepares for Gantry/Traefik.
+- name: Configure VPS with Docker Swarm
+  hosts: vps # Target hosts defined in your inventory file
+  become: yes # Most tasks require sudo privileges
+  vars_files:
+    - inventory # Load variables (like deploy_user) from inventory (ansible-vps-setup/inventory)
+
+  roles:
+    # Use a standard role to install Docker and add user to docker group
+    - role: geerlingguy.docker
+      vars:
+        docker_users: # Add the user who will run remote docker commands
+          - "{{ deploy_user }}"
+
+  tasks:
+    - name: Ensure Docker Swarm is initialized
+      community.docker.docker_swarm:
+        state: present
+      register: swarm_state
+      # Note: The Ansible host needs Docker SDK for Python: pip install docker
+
+    # Optional: Display join tokens if Swarm was just initialized
+    # - name: Get Swarm join tokens
+    #   community.docker.docker_swarm_info:
+    #   register: swarm_info
+    #   when: swarm_state.changed
+    # - name: Display worker join token
+    #   debug: msg="Worker token: {{ swarm_info.swarm_facts.JoinTokens.Worker }}"
+    #   when: swarm_state.changed
+    # - name: Display manager join token
+    #   debug: msg="Manager token: {{ swarm_info.swarm_facts.JoinTokens.Manager }}"
+    #   when: swarm_state.changed
+
+    - name: Create directories for Traefik persistent data
+      ansible.builtin.file:
+        path: "/opt/traefik/letsencrypt" # Directory for Let's Encrypt certs
+        state: directory
+        owner: root # Traefik container often runs as root
+        group: root
+        mode: "0700" # Restrict access, Traefik container needs write access
+
+    - name: Create directory for Gantry configuration
+      ansible.builtin.file:
+        path: "/opt/gantry/config" # Directory to store Gantry's config.yml
+        state: directory
+        owner: "{{ deploy_user }}" # Or root, depending on Gantry container user
+        group: "{{ deploy_user }}" # Or docker group
+        mode: "0755"
+
+    - name: Copy Gantry configuration file to VPS
+      ansible.builtin.copy:
+        # Path to your local Gantry config file (ansible/gantry_config.yml)
+        src: ./gantry_config.yml
+        # Destination on the VPS
+        dest: /opt/gantry/config/config.yml
+        owner: "{{ deploy_user }}" # Match directory owner
+        group: "{{ deploy_user }}"
+        mode: "0644"
+      # Note: Alternatively, use ansible.builtin.template if config needs variables
+
+    # No need to install Gantry binary or systemd service, it runs as a container

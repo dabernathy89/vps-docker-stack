@@ -1,0 +1,8 @@
+# requirements.yml
+# Defines necessary Ansible collections or roles.
+# The geerlingguy.docker role needs to be installed separately:
+# ansible-galaxy install geerlingguy.docker -p ./roles/
+# Requires the community.docker collection:
+# ansible-galaxy collection install community.docker
+collections:
+  - name: community.docker

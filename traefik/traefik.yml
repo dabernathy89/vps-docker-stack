@@ -1,0 +1,57 @@
+# traefik.yml (Static Configuration)
+# Base configuration for Traefik instance.
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: false # Disable anonymous usage statistics
+
+# API and Dashboard configuration
+api:
+  dashboard: true # Enable the Traefik dashboard
+  # insecure: true # DANGEROUS: Only for initial testing without TLS/Auth
+
+# Define network entrypoints (HTTP and HTTPS)
+entryPoints:
+  web:
+    address: ":80" # Listen on port 80 for HTTP
+    # Redirect all HTTP traffic to HTTPS
+    http:
+      redirections:
+        entryPoint:
+          to: websecure # Target entrypoint for redirection
+          scheme: https # Target scheme
+
+  websecure:
+    address: ":443" # Listen on port 443 for HTTPS
+    # Configure TLS for the HTTPS entrypoint
+    http:
+      tls:
+        certResolver: myresolver # Specify the default certificate resolver
+
+# Configure Certificate Resolvers (Let's Encrypt)
+certificatesResolvers:
+  myresolver:
+    acme:
+      email: ${LETSENCRYPT_EMAIL} # Your email address for Let's Encrypt (from .env)
+      storage: /letsencrypt/acme.json # Path inside container to store certs
+      # Use HTTP challenge for certificate validation
+      httpChallenge:
+        entryPoint: web # Use the 'web' entrypoint (port 80) for challenges
+
+# Configure Service Discovery Providers (Docker Swarm)
+providers:
+  docker:
+    swarmMode: true # Enable Swarm mode discovery
+    endpoint: "unix:///var/run/docker.sock" # Path to Docker socket
+    exposedByDefault: false # IMPORTANT: Only expose services with 'traefik.enable=true' label
+    network: traefik-public # Default network to look for services on
+
+# Configure Logging
+log:
+  level: INFO # Log level (DEBUG, INFO, WARNING, ERROR)
+  # filePath: /var/log/traefik.log # Optional: Log to file inside container
+
+# Configure Access Logs
+accessLog:
+  {} # Enable access logs with default settings
+  # filePath: /var/log/access.log # Optional: Log to file
+  # format: json # Optional: Log format (common, json)
