@@ -1,4 +1,4 @@
-# docker-stack.yml (Expected path: traefik-stack/docker-stack.yml)
+# docker-stack.yml (Expected path: traefik/docker-stack.yml)
 # Deploys Traefik reverse proxy in Docker Swarm mode.
 version: "3.8"
 
@@ -22,14 +22,14 @@ services:
       # Path on VPS: /opt/traefik/letsencrypt (created by Ansible)
       - /opt/traefik/letsencrypt:/letsencrypt
       # Mount Traefik static configuration file (read-only)
-      # The actual traefik.yml file (traefik-stack/traefik.yml) should be in the same directory when deploying.
+      # The actual traefik.yml file (traefik/traefik.yml) should be in the same directory when deploying.
       - ./traefik.yml:/etc/traefik/traefik.yml:ro
     networks:
       # Attach Traefik to the public network it will manage
       - traefik-public
     environment:
       # Pass Let's Encrypt email from .env file
-      # The .env file (traefik-stack/.env) should be present in the same directory when deploying.
+      # The .env file (traefik/.env) should be present in the same directory when deploying.
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
       # Optional: Set Traefik log level (DEBUG, INFO, WARNING, ERROR)
       # - TRAEFIK_LOG_LEVEL=DEBUG
@@ -70,5 +70,5 @@ networks:
     name: traefik-public # Explicitly name the network
     attachable: true # Allows non-swarm containers to connect if needed (optional)
 
-# Note: The traefik.yml (traefik-stack/traefik.yml) and .env (traefik-stack/.env) files
+# Note: The traefik.yml (traefik/traefik.yml) and .env (traefik/.env) files
 # should be present in the same directory when running 'docker stack deploy'.

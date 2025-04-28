@@ -13,8 +13,8 @@ This guide outlines the steps to set up a VPS to host multiple web services usin
 3.  [Phase 1: Infrastructure Setup with Ansible](#phase-1-infrastructure-setup-with-ansible)
 4.  [Phase 2: Configure Remote Docker Access](#phase-2-configure-remote-docker-access)
 5.  [Phase 3: Deploy Core Services (Traefik & Gantry)](#phase-3-deploy-core-services-traefik--gantry)
-    * [Deploy Traefik Stack](#deploy-traefik-stack)
-    * [Deploy Gantry Stack](#deploy-gantry-stack)
+    * [Deploy Traefik Stack](#deploy-traefik)
+    * [Deploy Gantry Stack](#deploy-gantry)
 6.  [Phase 4: Deploy Application Services](#phase-4-deploy-application-services)
     * [Build & Push Application Image](#build--push-application-image)
     * [Deploy Application Stack](#deploy-application-stack)
@@ -60,7 +60,7 @@ This guide outlines the steps to set up a VPS to host multiple web services usin
 
 Organize your code locally for clarity:
 
-your-project-root/├── ansible/      # Ansible configuration for the VPS│   ├── playbook.yml│   ├── inventory│   ├── requirements.yml│   ├── gantry_config.yml   # Gantry config file (copied by Ansible)│   └── roles/│       └── geerlingguy.docker/ # Installed via ansible-galaxy│├── traefik-stack/          # Traefik deployment files│   ├── docker-stack.yml│   ├── traefik.yml│   └── .env                # Contains LETSENCRYPT_EMAIL│├── gantry-stack/           # Gantry deployment files│   ├── docker-stack.yml│   └── .env                # Contains GHCR_USER, GHCR_PAT│├── frankenphp-app1/        # Repository for your first PHP app│   ├── public/│   │   └── index.php│   ├── Dockerfile│   └── docker-stack.yml    # Defines app1 stack│├── frankenphp-app2/        # Repository for your second PHP app│   ├── public/│   │   └── index.php│   ├── Dockerfile│   └── docker-stack.yml    # Defines app2 stack│└── README.md               # This file
+your-project-root/├── ansible/      # Ansible configuration for the VPS│   ├── playbook.yml│   ├── inventory│   ├── requirements.yml│   ├── gantry_config.yml   # Gantry config file (copied by Ansible)│   └── roles/│       └── geerlingguy.docker/ # Installed via ansible-galaxy│├── traefik/          # Traefik deployment files│   ├── docker-stack.yml│   ├── traefik.yml│   └── .env                # Contains LETSENCRYPT_EMAIL│├── gantry/           # Gantry deployment files│   ├── docker-stack.yml│   └── .env                # Contains GHCR_USER, GHCR_PAT│├── frankenphp-app1/        # Repository for your first PHP app│   ├── public/│   │   └── index.php│   ├── Dockerfile│   └── docker-stack.yml    # Defines app1 stack│├── frankenphp-app2/        # Repository for your second PHP app│   ├── public/│   │   └── index.php│   ├── Dockerfile│   └── docker-stack.yml    # Defines app2 stack│└── README.md               # This file
 ---
 
 ## Phase 1: Infrastructure Setup with Ansible
@@ -107,7 +107,7 @@ Deploy the essential Traefik proxy and Gantry update monitor from your **local m
 
 ### Deploy Traefik Stack
 
-1.  **Navigate** to your `traefik-stack` directory.
+1.  **Navigate** to your `traefik` directory.
 2.  **Create/Review `.env`:** Ensure `LETSENCRYPT_EMAIL` is set correctly.
 3.  **Review `traefik.yml`:** Verify static configuration (entrypoints, ACME resolver, Docker provider).
 4.  **Review `docker-stack.yml`:** Check image version, volumes, network, placement constraints, and dashboard labels (update `Host` rule if enabling).
@@ -120,12 +120,12 @@ Deploy the essential Traefik proxy and Gantry update monitor from your **local m
 
 ### Deploy Gantry Stack
 
-1.  **Navigate** to your `gantry-stack` directory.
+1.  **Navigate** to your `gantry` directory.
 2.  **Create/Review `.env`:** Set your `GHCR_USER` and `GHCR_PAT`.
 3.  **Review `docker-stack.yml`:** Check image, environment variables (for credentials), volumes (Docker socket, config file), and placement constraints.
 4.  **Export Environment Variables** (for `docker stack deploy` to access them):
     ```bash
-    # Ensure you are in the gantry-stack directory
+    # Ensure you are in the gantry directory
     export $(grep -v '^#' .env | xargs)
     ```
     *(Alternatively, manually export `GHCR_USER` and `GHCR_PAT`)*

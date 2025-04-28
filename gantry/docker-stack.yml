@@ -1,4 +1,4 @@
-# docker-stack.yml (Expected path: gantry-stack/docker-stack.yml)
+# docker-stack.yml (Expected path: gantry/docker-stack.yml)
 # Deploys Gantry container to monitor and update other Swarm services.
 version: "3.8"
 
@@ -9,7 +9,7 @@ services:
       # Provide registry credentials securely via environment variables
       # Gantry automatically detects DOCKER_USER/DOCKER_PASSWORD for registries
       # where pass_credentials_to_env is true in config.yml
-      # These variables should be sourced from the .env file (gantry-stack/.env) when deploying.
+      # These variables should be sourced from the .env file (gantry/.env) when deploying.
       - DOCKER_USER=${GHCR_USER}
       - DOCKER_PASSWORD=${GHCR_PAT}
       # Set log level (optional, defaults to info)
@@ -28,6 +28,6 @@ services:
         constraints: [node.role == manager] # Gantry must run on a manager node
       restart_policy:
         condition: on-failure
-# Note: The .env file (gantry-stack/.env) containing GHCR_USER and GHCR_PAT
+# Note: The .env file (gantry/.env) containing GHCR_USER and GHCR_PAT
 # should be present in the same directory when running 'docker stack deploy'
 # and its variables exported.
