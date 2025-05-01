@@ -26,14 +26,10 @@ This guide outlines the steps to set up a VPS to host multiple web services usin
 
 ### Local Machine
 
-* **Ansible:** Installed (`pip install ansible`).
-* **Docker Engine:** Installed (to build images and run remote commands).
-* **SSH Client:** Access to the VPS via SSH (key-based authentication recommended).
-* **Git:** To manage your code repositories.
-* **Ansible Docker Role & Collection:**
-    * `ansible-galaxy install geerlingguy.docker -p ./roles/` (Run inside your Ansible project dir)
-    * `ansible-galaxy collection install community.docker`
-* **Python Docker SDK:** Required by Ansible Docker modules (`pip install docker`).
+* **Docker Desktop:** Installed via Homebrew (`brew install --cask docker`) or download from [Docker's website](https://www.docker.com/products/docker-desktop/).
+* **SSH Client:** Built into macOS.
+* **Git:** Installed via Homebrew (`brew install git`) or macOS Developer Tools.
+* **1Password:** With SSH agent enabled for key management.
 
 ### VPS
 
@@ -56,26 +52,59 @@ This guide outlines the steps to set up a VPS to host multiple web services usin
 
 ---
 
-## Project Structure (Recommended)
+## Project Structure
 
-Organize your code locally for clarity:
-
-your-project-root/├── ansible/      # Ansible configuration for the VPS│   ├── playbook.yml│   ├── inventory│   ├── requirements.yml│   ├── gantry_config.yml   # Gantry config file (copied by Ansible)│   └── roles/│       └── geerlingguy.docker/ # Installed via ansible-galaxy│├── traefik/          # Traefik deployment files│   ├── docker-stack.yml│   ├── traefik.yml│   └── .env                # Contains LETSENCRYPT_EMAIL│├── gantry/           # Gantry deployment files│   ├── docker-stack.yml│   └── .env                # Contains GHCR_USER, GHCR_PAT│├── frankenphp-app1/        # Repository for your first PHP app│   ├── public/│   │   └── index.php│   ├── Dockerfile│   └── docker-stack.yml    # Defines app1 stack│├── frankenphp-app2/        # Repository for your second PHP app│   ├── public/│   │   └── index.php│   ├── Dockerfile│   └── docker-stack.yml    # Defines app2 stack│└── README.md               # This file
+```
+your-project-root/
+├── .env                  # GitHub credentials for build-push script
+├── .gitignore            # Ignores sensitive .env files
+├── build-push.sh         # Script to build and push container images
+├── ansible/              # Ansible configuration for the VPS
+│   ├── inventory         # Target hosts and variables
+│   ├── playbook.yml      # Provisions the VPS
+│   ├── ansible.cfg       # Ansible configuration
+│   └── run-ansible.sh    # Script to run Ansible in Docker with 1Password
+├── core/                 # Combined infrastructure services
+│   ├── docker-stack.yml  # Combined Traefik and Gantry stack
+│   ├── traefik.yml       # Traefik static configuration
+│   ├── gantry-config.yml # Gantry service monitors
+│   ├── .env              # Environment variables for both services
+│   └── deploy.sh         # Deployment script with context switching
+├── app1/                 # First PHP app
+│   ├── public/
+│   │   └── index.php
+│   ├── Dockerfile
+│   ├── docker-stack.yml  # App1 stack definition
+│   └── deploy.sh         # App1 deployment script
+├── app2/                 # Second PHP app
+│   ├── public/
+│   │   └── index.php
+│   ├── Dockerfile
+│   ├── docker-stack.yml  # App2 stack definition
+│   └── deploy.sh         # App2 deployment script
+└── README.md             # This documentation
+```
 ---
 
 ## Phase 1: Infrastructure Setup with Ansible
 
-This phase uses Ansible on your **local machine** to prepare the **VPS**.
+This phase uses Ansible in a Docker container to prepare the **VPS**, eliminating the need to install Ansible locally.
 
 1.  **Navigate** to your `ansible` directory.
-2.  **Configure `inventory`:** Add your VPS IP, SSH user, and path to your SSH private key. Set the `deploy_user` variable.
-3.  **Configure `gantry_config.yml`:** Define the services Gantry should monitor (e.g., `app1_app`, `app2_app`) and specify the image names and tags. Set `pass_credentials_to_env: true` for `ghcr.io`.
-4.  **Ensure Roles/Collections Installed:** Run the `ansible-galaxy` commands mentioned in the prerequisites if you haven't already.
-5.  **Run the Playbook:**
+2.  **Configure `inventory`:** Set up your VPS IP and SSH user. The SSH key will be provided via 1Password SSH agent.
+3.  **Run the Ansible container:**
     ```bash
-    ansible-playbook -i inventory playbook.yml
+    # Use the provided helper script that handles 1Password SSH agent forwarding
+    ./run-ansible.sh
     ```
-    This installs Docker, initializes Swarm, creates necessary directories (`/opt/traefik/letsencrypt`, `/opt/gantry/config`), and copies `gantry_config.yml` to the VPS.
+
+    The script will:
+    - Mount the 1Password SSH socket into the container
+    - Install required Ansible collections and roles inside the container
+    - Run the playbook using your 1Password SSH key
+    - No need to install Ansible or its dependencies locally!
+
+    This playbook installs Docker, initializes Swarm, and creates the necessary directory for Traefik certificates (`/opt/traefik/letsencrypt`).
 
 ---
 
@@ -85,12 +114,12 @@ Configure your **local Docker client** to manage the Docker Swarm running on the
 
 1.  **Create Docker Context:**
     ```bash
-    # Replace with your actual deploy user and VPS IP
-    docker context create swarm-vps --docker "host=ssh://your_deploy_user@your_vps_ip"
+    # Create a named context for your VPS
+    docker context create certain-painter --docker "host=ssh://your_deploy_user@your_vps_ip"
     ```
 2.  **Switch to Remote Context:**
     ```bash
-    docker context use swarm-vps
+    docker context use certain-painter
     ```
 3.  **Verify Connection (Optional):**
     ```bash
@@ -103,77 +132,72 @@ Configure your **local Docker client** to manage the Docker Swarm running on the
 
 ## Phase 3: Deploy Core Services (Traefik & Gantry)
 
-Deploy the essential Traefik proxy and Gantry update monitor from your **local machine**.
+Deploy the essential Traefik proxy and Gantry update monitor from your **local machine** using a combined configuration.
 
-### Deploy Traefik Stack
+### Deploy Combined Core Stack
 
-1.  **Navigate** to your `traefik` directory.
-2.  **Create/Review `.env`:** Ensure `LETSENCRYPT_EMAIL` is set correctly.
-3.  **Review `traefik.yml`:** Verify static configuration (entrypoints, ACME resolver, Docker provider).
-4.  **Review `docker-stack.yml`:** Check image version, volumes, network, placement constraints, and dashboard labels (update `Host` rule if enabling).
-5.  **Deploy:**
+1.  **Navigate** to your `core` directory.
+2.  **Review `.env`:** Set these variables:
+    * `LETSENCRYPT_EMAIL` - Your email for Let's Encrypt certificates
+    * `GHCR_USER` and `GHCR_PAT` - Your GitHub username and Personal Access Token
+3.  **Review Configuration Files:**
+    * `traefik.yml` - Traefik's static configuration
+    * `gantry-config.yml` - Services Gantry should monitor
+    * `docker-stack.yml` - Combined stack definition for both services
+4.  **Deploy:**
     ```bash
-    # No registry auth needed if using official Traefik image
-    docker stack deploy -c docker-stack.yml traefik
-    ```
-6.  **Verify:** Check Traefik logs (`docker service logs traefik_traefik`) and try accessing the dashboard URL (if configured).
+    # Run the deployment script
+    ./deploy.sh
 
-### Deploy Gantry Stack
-
-1.  **Navigate** to your `gantry` directory.
-2.  **Create/Review `.env`:** Set your `GHCR_USER` and `GHCR_PAT`.
-3.  **Review `docker-stack.yml`:** Check image, environment variables (for credentials), volumes (Docker socket, config file), and placement constraints.
-4.  **Export Environment Variables** (for `docker stack deploy` to access them):
-    ```bash
-    # Ensure you are in the gantry directory
-    export $(grep -v '^#' .env | xargs)
+    # Or manually deploy with:
+    # export $(grep -v '^#' .env | xargs)
+    # docker stack deploy -c docker-stack.yml core
     ```
-    *(Alternatively, manually export `GHCR_USER` and `GHCR_PAT`)*
-5.  **Deploy:**
-    ```bash
-    # --with-registry-auth sends GHCR credentials for pulling Gantry image if needed,
-    # and Gantry itself uses the ENV vars to auth later when checking app images.
-    docker stack deploy --with-registry-auth -c docker-stack.yml gantry
-    ```
-6.  **Verify:** Check Gantry logs (`docker service logs gantry_gantry`). It should start monitoring based on `/opt/gantry/config/config.yml`.
+5.  **Verify:**
+    * Check services: `docker service ls`
+    * Check Traefik logs: `docker service logs core_traefik`
+    * Check Gantry logs: `docker service logs core_gantry`
+    * Access the Traefik dashboard at your configured domain
 
 ---
 
 ## Phase 4: Deploy Application Services
 
-Deploy your individual applications (e.g., `frankenphp-app1`, `frankenphp-app2`) from your **local machine**. Repeat these steps for each application.
+Deploy your individual applications (e.g., `app1`, `app2`) from your **local machine**. Repeat these steps for each application.
 
 ### Build & Push Application Image
 
-1.  **Navigate** to the application's directory (e.g., `frankenphp-app1`).
-2.  **Build the Image:** Replace placeholders with your GHCR username and app name.
+1.  **Configure authentication** by setting up your GitHub credentials:
     ```bash
-    docker build -t ghcr.io/YOUR_GITHUB_USERNAME/frankenphp-app1:latest .
-    # Optional: Tag with a version
-    # docker tag ghcr.io/YOUR_GITHUB_USERNAME/frankenphp-app1:latest ghcr.io/YOUR_GITHUB_USERNAME/frankenphp-app1:v1.0.0
+    # Edit the .env file in the project root
+    GITHUB_USER=your-github-username
+    GITHUB_PAT=your-github-personal-access-token
     ```
-3.  **Log in to GHCR** (if not already logged in the current session):
+
+2.  **Run the build-push script** with the app name:
     ```bash
-    echo $YOUR_GITHUB_PAT | docker login ghcr.io -u $YOUR_GITHUB_USERNAME --password-stdin
+    # From the project root
+    ./build-push.sh app1
     ```
-4.  **Push the Image:**
-    ```bash
-    docker push ghcr.io/YOUR_GITHUB_USERNAME/frankenphp-app1:latest
-    # Optional: Push version tag
-    # docker push ghcr.io/YOUR_GITHUB_USERNAME/frankenphp-app1:v1.0.0
-    ```
+
+    This script:
+    - Loads your GitHub credentials from .env
+    - Authenticates with GitHub Container Registry
+    - Builds the app image with the correct naming convention
+    - Pushes it to GitHub Container Registry
+    - Shows you the next steps
 
 ### Deploy Application Stack
 
-1.  **Navigate** to the application's directory (e.g., `frankenphp-app1`).
+1.  **Navigate** to the application's directory (e.g., `app1`).
 2.  **Review `docker-stack.yml`:**
     * Verify the `image` name matches the one you pushed.
     * Ensure it connects to the external `traefik-public` network.
     * Check Traefik labels (`traefik.enable=true`, `traefik.docker.network`, `rule=Host(...)`, `loadbalancer.server.port`). **Update the `Host` rule** to the correct domain/subdomain for this app.
-3.  **Deploy:** Use a unique stack name (e.g., `app1`).
+3.  **Deploy:** Use the deployment script to ensure the correct Docker context.
     ```bash
-    # --with-registry-auth is needed for Swarm to pull your private image
-    docker stack deploy --with-registry-auth -c docker-stack.yml app1
+    # Ensure Docker context is correct and deploy the stack
+    ./deploy.sh
     ```
 4.  **Verify:**
     * Check Swarm service status: `docker service ls` (look for `app1_app`).
@@ -184,15 +208,28 @@ Deploy your individual applications (e.g., `frankenphp-app1`, `frankenphp-app2`)
 
 ## Phase 5: Updates and Workflow
 
-1.  **Make Code Changes:** Modify the code within an application's repository (e.g., `frankenphp-app1`).
-2.  **Build & Push New Image:** Re-run the build and push steps (**using the same image tag that Gantry is configured to monitor**, e.g., `:latest`).
+1.  **Make Code Changes:** Modify the code within an application's repository (e.g., `app1`).
+
+2.  **Build & Push New Image:** Use the build-push script to rebuild and push the updated image:
     ```bash
-    cd path/to/frankenphp-app1
-    docker build -t ghcr.io/YOUR_GITHUB_USERNAME/frankenphp-app1:latest .
-    docker push ghcr.io/YOUR_GITHUB_USERNAME/frankenphp-app1:latest
+    # From the project root
+    ./build-push.sh app1
     ```
-3.  **Automatic Update:** Gantry (running on the VPS) periodically checks GHCR. When it detects that the digest for the `ghcr.io/YOUR_GITHUB_USERNAME/frankenphp-app1:latest` image has changed, it will automatically trigger a `docker service update app1_app --image ... --with-registry-auth` command on the Swarm manager.
+
+3.  **Automatic Update:** Gantry (running on the VPS) periodically checks GHCR. When it detects that the digest for the `ghcr.io/dabernathy89/php-test-app1:latest` image has changed, it will automatically trigger a `docker service update app1_app --image ... --with-registry-auth` command on the Swarm manager.
+
 4.  **Swarm Rolling Update:** Docker Swarm performs a rolling update according to the `update_config` defined in the application's `docker-stack.yml`.
-5.  **Monitor:** Check Gantry logs (`docker service logs gantry_gantry`) and the application service logs (`docker service logs app1_app`) on the VPS (using the remote context or SSH) to observe the update process.
+
+5.  **Monitor:** Check service logs to observe the update process:
+    ```bash
+    # Switch to correct Docker context if needed
+    docker context use certain-painter
+
+    # Check Gantry logs
+    docker service logs core_gantry
+
+    # Check application logs
+    docker service logs app1_app
+    ```
 
 ---

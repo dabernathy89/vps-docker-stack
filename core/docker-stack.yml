@@ -1,0 +1,77 @@
+# docker-stack.yml
+# Combined configuration for core infrastructure services (Traefik + Gantry)
+version: "3.8"
+
+volumes:
+  traefik-certificates:
+
+services:
+  # Traefik - Reverse Proxy and SSL Termination
+  traefik:
+    image: custom-traefik:latest
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+    volumes:
+      # Mount Docker socket (read-only) for Swarm service discovery
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-certificates:/etc/traefik/acme
+    networks:
+      - traefik-public
+    environment:
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+      # labels:
+      # Traefik dashboard configuration
+      # - "traefik.enable=true"
+      # - "traefik.docker.network=traefik-public"
+      # - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.danielabernathy.com`)"
+      # - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      # - "traefik.http.routers.traefik-dashboard.tls.certresolver=myresolver"
+      # - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      # Uncomment for basic auth protection
+      # - "traefik.http.routers.traefik-dashboard.middlewares=dashboard-auth"
+      # - "traefik.http.middlewares.dashboard-auth.basicauth.users=admin:$$apr1$$......"
+
+  # Gantry - Container Update Monitor
+  gantry:
+    image: custom-gantry:latest
+    environment:
+      - DOCKER_USER=${GHCR_USER}
+      - DOCKER_PASSWORD=${GHCR_PAT}
+    volumes:
+      # Mount Docker socket (read-only)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      restart_policy:
+        condition: on-failure
+
+# Define networks
+networks:
+  traefik-public:
+    driver: overlay
+    name: traefik-public
+    attachable: true
+# Notes:
+# 1. Create a combined .env file with both LETSENCRYPT_EMAIL and GHCR credentials
+# 2. Include traefik.yml and gantry-config.yml in the same directory
+# 3. To deploy: export $(grep -v '^#' .env | xargs) && docker stack deploy -c docker-stack.yml core

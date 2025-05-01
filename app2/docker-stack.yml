@@ -1,4 +1,4 @@
-# docker-stack.yml (Expected path: frankenphp-app2/docker-stack.yml)
+# docker-stack.yml (Expected path: app2/docker-stack.yml)
 # Defines the second FrankenPHP application stack for Docker Swarm.
 version: "3.8"
 
@@ -7,8 +7,8 @@ services:
   # Full Swarm service name will be <stack_name>_app (e.g., app2_app)
   app:
     # Specify the image built from your Dockerfile and pushed to GHCR
-    # The Dockerfile (frankenphp-app2/Dockerfile) should be in the same directory or context when building.
-    image: ghcr.io/YOUR_GITHUB_USERNAME/frankenphp-app2:latest # CHANGE THIS
+    # The Dockerfile (app2/Dockerfile) should be in the same directory or context when building.
+    image: ghcr.io/dabernathy89/php-test-app2:latest # CHANGE THIS
     networks:
       # Connect this service to the external Traefik network
       - traefik-public
@@ -29,7 +29,7 @@ services:
 
         # --- Router Definition (How Traefik finds this service) ---
         # Rule based on the hostname. DNS for app2.domain2.com must point to VPS IP.
-        - "traefik.http.routers.app2-router.rule=Host(`app2.domain2.com`)" # CHANGE DOMAIN
+        - "traefik.http.routers.app2-router.rule=Host(`app2.danielabernathy.com`)" # CHANGE DOMAIN
         - "traefik.http.routers.app2-router.entrypoints=websecure" # Use HTTPS entrypoint
         - "traefik.http.routers.app2-router.tls.certresolver=myresolver" # Use Let's Encrypt
 
@@ -48,6 +48,6 @@ networks:
     external: true # Specify that this network is defined elsewhere (in Traefik stack)
     name: traefik-public # Ensure the name matches the external network
 
-# Note: The Dockerfile (frankenphp-app2/Dockerfile) and the public/index.php
-# (frankenphp-app2/public/index.php) file should be structured
+# Note: The Dockerfile (app2/Dockerfile) and the public/index.php
+# (app2/public/index.php) file should be structured
 # correctly in the directory when building the image specified above.

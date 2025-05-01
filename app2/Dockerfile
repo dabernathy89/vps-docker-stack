@@ -10,3 +10,6 @@ COPY public/ /app/public/
 
 # Optional: Copy other application files if needed
 # COPY . /app
+
+# Disable HTTPS since Traefik handles SSL termination
+ENV SERVER_NAME=:80

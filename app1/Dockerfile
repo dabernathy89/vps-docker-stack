@@ -16,6 +16,9 @@ COPY public/ /app/public/
 # Optional: Set environment variables if needed by your application
 # ENV APP_ENV=production
 
+# Disable HTTPS since Traefik handles SSL termination
+ENV SERVER_NAME=:80
+
 # Optional: Expose port if needed for direct access (not required when using Traefik)
 # EXPOSE 80
 

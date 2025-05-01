@@ -1,4 +1,4 @@
-# docker-stack.yml (Expected path: frankenphp-app1/docker-stack.yml)
+# docker-stack.yml (Expected path: app1/docker-stack.yml)
 # Defines the first FrankenPHP application stack for Docker Swarm.
 version: "3.8"
 
@@ -7,8 +7,8 @@ services:
   # Full Swarm service name will be <stack_name>_app (e.g., app1_app)
   app:
     # Specify the image built from your Dockerfile and pushed to GHCR
-    # The Dockerfile (frankenphp-app1/Dockerfile) should be in the same directory or context when building.
-    image: ghcr.io/YOUR_GITHUB_USERNAME/frankenphp-app1:latest # CHANGE THIS
+    # The Dockerfile (app1/Dockerfile) should be in the same directory or context when building.
+    image: ghcr.io/dabernathy89/php-test-app1:latest # CHANGE THIS
     networks:
       # Connect this service to the external Traefik network
       - traefik-public
@@ -28,8 +28,8 @@ services:
         - "traefik.docker.network=traefik-public"
 
         # --- Router Definition (How Traefik finds this service) ---
-        # Rule based on the hostname. DNS for app1.domain1.com must point to VPS IP.
-        - "traefik.http.routers.app1-router.rule=Host(`app1.domain1.com`)" # CHANGE DOMAIN
+        # Rule based on the hostname. DNS for both domain.com and www.domain.com must point to VPS IP.
+        - "traefik.http.routers.app1-router.rule=Host(`app1.danielabernathy.com`)" # CHANGE DOMAIN
         - "traefik.http.routers.app1-router.entrypoints=websecure" # Use HTTPS entrypoint
         - "traefik.http.routers.app1-router.tls.certresolver=myresolver" # Use Let's Encrypt
 
@@ -48,6 +48,6 @@ networks:
     external: true # Specify that this network is defined elsewhere (in Traefik stack)
     name: traefik-public # Ensure the name matches the external network
 
-# Note: The Dockerfile (frankenphp-app1/Dockerfile) and the public/index.php
-# (frankenphp-app1/public/index.php) file should be structured
+# Note: The Dockerfile (app1/Dockerfile) and the public/index.php
+# (app1/public/index.php) file should be structured
 # correctly in the directory when building the image specified above.

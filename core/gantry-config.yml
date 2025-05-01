@@ -1,0 +1,20 @@
+# gantry-config.yml
+registries:
+  # Define credentials for your private registry (GHCR)
+  ghcr.io:
+    # Credentials passed via environment variables
+    pass_credentials_to_env: true
+
+services:
+  # App 1
+  - name: app1_app
+    image: ghcr.io/dabernathy89/php-test-app1
+    tag: latest
+  
+  # App 2
+  - name: app2_app
+    image: ghcr.io/dabernathy89/php-test-app2
+    tag: latest
+
+swarm:
+  enabled: true

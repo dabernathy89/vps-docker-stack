@@ -1,0 +1,4 @@
+FROM ghcr.io/shizunge/gantry:latest
+
+# Copy gantry config
+COPY gantry-config.yml /config/config.yml

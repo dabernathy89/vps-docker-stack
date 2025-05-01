@@ -1,0 +1,9 @@
+FROM traefik:v3.0
+
+# Copy traefik.yml configuration
+COPY traefik.yml /etc/traefik/traefik.yml
+
+# Create directory for certificates
+RUN mkdir -p /letsencrypt
+
+CMD ["--configfile=/etc/traefik/traefik.yml"]
